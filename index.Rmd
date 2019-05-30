@@ -1,0 +1,172 @@
+---
+title: "Leaflet: Online Mapping in R"
+author: "Robin Lovelace - Jan 31/15"
+date: "`r Sys.Date()`"
+output: 
+  rmarkdown::html_document:
+    css: custom.css
+    theme: journal
+    hightlight: espresso
+    toc: true
+    toc_depth: 4
+    number_sections: true
+---
+<a name = 'top'></a> 
+
+```{r opts, echo=FALSE, message=FALSE, warning=FALSE}
+require('knitr')
+opts_chunk$set(fig.path='img/map-') # creates / uses directory for figures
+# apply fig.width and fig.height for size
+```
+
+Purpose
+==========
+To explore the creation of interactive online maps using the Leaflet map widget. `leaflet` package in R combines the leaflet Open-Source JavaScript library with htmlwidgets. It also works with the R `shiny` package. 
+
+The base for this exercise is work of Dr. Robin Lovelace at http://robinlovelace.net/r/2015/02/01/leaflet-r-package.html. His web site contains a wealth of mapping resources in R and other open-source software.
+
+[Top](#top)  
+
+Set up libraries and data
+--------
+
+```{r install, message=FALSE}
+
+# required libraries
+library(leaflet)
+library(png)
+library(grid)
+library(rgdal)
+```
+
+First web map
+==========
+
+One line of code generates an interactive world map and displays it witin R-Studio. Map first appears blank. Select the + control to bring it up.
+
+```{r map1}
+# Plot a default web map (brackets force display of the result)
+(m <- leaflet() %>% addTiles())
+```
+The following capture illustrates details at maximum zoom. 
+```{r map1_detail}
+# Ryerson University campus downtown Toronto
+img <- readPNG("./img/map-Toronto-Ryerson.png")
+grid.raster(img)
+```
+[top](#top)
+
+Adding features with %>%
+-----------
+
+`Leaflet` applies the newly available `%>%` piping operator (see dev notes below), making it easy to sequentially add settings and functions without using complex nested brackets.
+
+For example, adding a location to our map `m` generated above is done by piping the map into the package's `setView()` function. The arguments of this function require latitude and longitude. 
+
+### Locating latitude and longitude
+
+To locate coordinates for a place or specific address (or to convert from known lat long) use the resources at [latlong.net](http://www.latlong.net/).
+
+In the example below we zoom to the max into Montreal's St. Viateur Bagel Bakery.
+
+```{r setview}
+img <- readPNG("./img/StViateurBagel.png")
+grid.raster(img)
+ # set centre and zoom for world's best bagel
+m %>% setView(lng = -73.602111, lat = 45.522435, zoom = 18)
+```
+[top](#top)
+
+Add markers and popup to the map by applyng the piping operator:
+
+```{r map1_add}
+ (m2 <- m %>% 
+    setView(-73.602111, 45.522435, 14)  %>% # zoom out from above
+    addMarkers(-73.587434, 45.515176)  %>%  # add marker
+    addPopups(-73.602111, 45.522435, popup = "St. Viateur Bagels")  %>% # popup
+    # add circles 1st runif sets min/max longitude, 2nd sets long, 3rd sets radius
+    addCircles(color = "red", runif(10, -73.61, -73.57), runif(10, 45.515, 45.53), runif(10, 40, 125)))
+```
+
+[top](#top)
+
+Adding data
+===========
+
+In the above example we added random data in the shape of circles. Now we explore real data. There are 3 options in `leaflet`:
+
+* data in the form of a lat/long matrix or data frame in base R
+* data from the `sp` package (SpatialPoint, SpatialPolygons, others)
+* data from the `maps` package
+
+Hiking the mountain
+--------------
+
+Growing up next to Mt. Royal, the mountain provides a life long love of public parks. Let's plot a hike. The data comes from http://www.wikiloc.com/wikiloc/view.do?id=3733830, a public source requiring a free account for downloading.
+
+To load this data requires the `rgdal` package.
+
+```{r add_gpx}
+# load hiking data as a SpatialLinesDataFrame
+mtroyal <- readOGR("./data/mt-royal-montreal.gpx", layer ="tracks")
+# display in leaflet, changing centre of map and zooming out to display more 
+m2 %>%
+  setView(-73.602111, 45.515, 13) %>% # map location
+  addPolylines(data = mtroyal, color = "red", weight = 4)
+```
+[Top](#top)
+
+Shiny Integration
+==============
+
+Leaflet development comes from the same team who did `shiny`. The example below demonstrates the integration of both. Shiny does not display within an rmarkdown/html page. To view as an independent web page, copy/paste code below to the R console.
+
+```{r shiny_eg}
+library(shiny)
+library(leaflet)
+shinyApp(
+  ui = fluidPage(leafletOutput('myMap')),
+  server = function(input, output) {
+    
+    shef2leeds <- readOGR("./data/shef2leeds.gpx", layer = "tracks")
+    
+    map = leaflet() %>% addTiles() %>% setView(-1.5, 53.4, 9) %>% 
+      addPolylines(data = shef2leeds, color = "red", weight = 4)
+    output$myMap = renderLeaflet(map)
+  }
+)
+
+```
+
+[Top](#top)
+
+References
+==========
+http://www.r-bloggers.com/the-leaflet-package-for-online-mapping-in-r/ on Jan 31/15   
+http://robinlovelace.net/r/2015/02/01/leaflet-r-package.html    
+http://leafletjs.com/   
+http://www.latlong.net/    
+http://www.wikiloc.com/wikiloc/view.do?id=3733830   
+
+[top](#top)   
+
+Dev Notes
+========
+
+20190530 - review, minor edits, re-run    
+20190212 - on re-run had to reinstall leaflet using devtools and github to avoid errs; Within RStudio, a keyboard short-cut `Ctl+Shift+M` produces the pipe operator `%>%`
+
+```{r sessioninfo}
+sessionInfo()
+```
+
+    May you do good and not evil.   
+    May you find forgiveness for yourself and forgive others.   
+    May you share freely, never taking more than you give.   
+    CC ^[<a href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank">CC-by-SA 4.0</a>]   
+
+
+
+
+
+
